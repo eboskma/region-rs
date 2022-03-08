@@ -1,3 +1,5 @@
+use std::os::unix::prelude::RawFd;
+
 use crate::{os, page, util, Error, Protection, Result};
 
 /// A handle to an owned region of memory.
@@ -151,6 +153,40 @@ pub fn alloc_at<T>(address: *const T, size: usize, protection: Protection) -> Re
 
   unsafe {
     let base = os::alloc(address.cast(), size, protection)?;
+    Ok(Allocation { base, size })
+  }
+}
+
+/// Allocates a file in memory, with a defined protection
+#[inline]
+pub fn alloc_file(size: usize, fd: RawFd, offset: usize, protection: Protection) -> Result<Allocation> {
+  if size == 0 {
+    return Err(Error::InvalidParameter("size"));
+  }
+
+  if fd < 0 {
+    return Err(Error::InvalidParameter("fd"));
+  }
+
+  let size = page::ceil(size as *const ()) as usize;
+
+  unsafe {
+    let base = os::alloc_file(std::ptr::null::<()>(), size, fd, offset, protection)?;
+    Ok(Allocation { base, size })
+  }
+}
+
+/// Allocates a file at a specific address, with a defined protection
+#[inline]
+pub fn alloc_file_at<T>(address: *const T, size: usize, fd: RawFd, offset: usize, protection: Protection) -> Result<Allocation> {
+  if fd < 0 {
+    return Err(Error::InvalidParameter("fd"));
+  }
+
+  let (address, size) = util::round_to_page_boundaries(address, size)?;
+
+  unsafe {
+    let base = os::alloc_file(address.cast(), size, fd, offset, protection)?;
     Ok(Allocation { base, size })
   }
 }

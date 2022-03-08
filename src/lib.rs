@@ -80,7 +80,7 @@
 #[macro_use]
 extern crate bitflags;
 
-pub use alloc::{alloc, alloc_at, Allocation};
+pub use alloc::{alloc, alloc_at, alloc_file, alloc_file_at, Allocation};
 pub use error::{Error, Result};
 pub use lock::{lock, unlock, LockGuard};
 pub use protect::{protect, protect_with_handle, ProtectGuard};

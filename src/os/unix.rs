@@ -1,7 +1,9 @@
 use crate::{Error, Protection, Result};
-use libc::{MAP_ANON, MAP_FAILED, MAP_FIXED, MAP_PRIVATE};
+use libc::{MAP_ANON, MAP_FAILED, MAP_FILE, MAP_FIXED, MAP_PRIVATE};
 use libc::{PROT_EXEC, PROT_NONE, PROT_READ, PROT_WRITE};
+use std::convert::TryInto;
 use std::io;
+use std::os::unix::prelude::RawFd;
 
 pub fn page_size() -> usize {
   unsafe { libc::sysconf(libc::_SC_PAGESIZE) as usize }
@@ -24,6 +26,19 @@ pub unsafe fn alloc(base: *const (), size: usize, protection: Protection) -> Res
   }
 
   match libc::mmap(base as *mut _, size, protection.to_native(), flags, -1, 0) {
+    MAP_FAILED => Err(Error::SystemCall(io::Error::last_os_error())),
+    address => Ok(address as *const ()),
+  }
+}
+
+pub unsafe fn alloc_file(base: *const (), size: usize, fd: RawFd, offset: usize, protection: Protection) -> Result<*const ()> {
+  let mut flags = MAP_PRIVATE | MAP_FILE;
+
+  if !base.is_null() {
+    flags |= MAP_FIXED;
+  }
+
+  match libc::mmap(base as *mut _, size, protection.to_native(), flags, fd, offset.try_into().unwrap()) {
     MAP_FAILED => Err(Error::SystemCall(io::Error::last_os_error())),
     address => Ok(address as *const ()),
   }
